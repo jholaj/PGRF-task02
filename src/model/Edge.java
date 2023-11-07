@@ -6,21 +6,39 @@ public class Edge {
 
     public Edge (int x1, int y1, int x2, int y2) {
         this.x1 = x1;
-        this.y1 = y2;
+        this.y1 = y1;
         this.x2 = x2;
         this.y2 = y2;
     }
+
+    // pridat zkraceni o 1
 
     public boolean isHorizontal() {
         return y1 == y2;
     }
 
-    public void orientate(){
-        //TODO: změna orientace
-        int temp = 0;
-        y1 = temp;
-        y2 = y1;
-        y1 = temp;
+
+    public boolean isIntersection(int y) {
+        return (y >= y1 && y <= y2);
+        //mozna problem tady? jeste checkovat x?
     }
 
+    public int calcIntersection(int y) {
+        double k = ((double) (x2 - x1)) / ((y2 - y1));
+        double q = x1 - k * y1;
+        return (int) Math.round(k * y + q);
+    }
+
+    public void orientate(){
+        // změna orientace
+        if (y1 > y2) {
+            int tempY = y1;
+            y1 = y2;
+            y2 = tempY;
+
+            int tempX = x1;
+            x1 = x2;
+            x2 = tempX ;
+        }
+    }
 }

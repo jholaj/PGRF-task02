@@ -7,6 +7,7 @@ public class RasterBufferedImage implements Raster {
 
     private final BufferedImage img;
     private int color;
+    //vyresit vykreslovani mimo canvas
 
     public BufferedImage getImg() {
         return img;

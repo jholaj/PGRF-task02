@@ -1,5 +1,6 @@
 import fill.ScanLineFiller;
 import fill.SeedFiller;
+import fill.SeedFillerBorder;
 import model.*;
 import rasterize.*;
 
@@ -41,6 +42,7 @@ public class Canvas {
 	// COLORED OBJECTS / SEED FILL
 	private List<SeedFiller> coloredObjects = new ArrayList<>();
 	private Polygon polygon;
+	private Rectangle rectangle;
 	private boolean polygonMode = false;
 
 
@@ -56,6 +58,7 @@ public class Canvas {
 		lineRasterizer = new LineRasterizerGraphics(raster);
 		dottedLineRasterizer = new DottedLineRasterizer(raster, 10);
 		polygonRasterizer = new PolygonRasterizer(lineRasterizer);
+
 
 		polygon = new Polygon();
 
@@ -171,6 +174,7 @@ public class Canvas {
 
 				polygonRasterizer.rasterize(polygon);
 
+				/*
 				if(e.getButton() == MouseEvent.BUTTON3){
 					SeedFiller seedFiller = new SeedFiller(raster, raster.getPixel(e.getX(), e.getY()), e.getX(), e.getY());
 					seedFiller.fill();
@@ -178,15 +182,25 @@ public class Canvas {
 					coloredObjects.add(seedFiller);
 				}
 
+				 */
 
-				/*
+
 				if(e.getButton() == MouseEvent.BUTTON3){
 					ScanLineFiller scanLineFiller = new ScanLineFiller(lineRasterizer, polygonRasterizer, polygon);
 					scanLineFiller.fill();
-					System.out.println("scanline fill");
+					System.out.println("Scanline fill...");
 				}
-				 */
 
+
+				/*
+				if(e.getButton() == MouseEvent.BUTTON3){
+					//SeedFillerBorder seedFillerBorder = new SeedFillerBorder(raster, );
+					//seedFillerBorder.fill();
+					System.out.println("Seed fill border...");
+					//coloredObjects.add(seedFillerBorder);
+				}
+
+				 */
 
 				panel.repaint();
 
@@ -227,6 +241,10 @@ public class Canvas {
 		drawString(raster.getGraphics(), "", 575, 525);
 		panel.repaint();
 		clear(0x000000);
+		//Point p1 = new Point(200,200);
+		//Point p3 = new Point(400,400);
+		//Rectangle r1 = new Rectangle(p1,p3);
+		//polygonRasterizer.rasterize(r1);
 	}
 
 	public void drawString(Graphics g, String text, int x, int y) {
