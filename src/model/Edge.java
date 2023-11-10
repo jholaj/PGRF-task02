@@ -20,7 +20,6 @@ public class Edge {
 
     public boolean isIntersection(int y) {
         return (y >= y1 && y <= y2);
-        //mozna problem tady? jeste checkovat x?
     }
 
     public int calcIntersection(int y) {
@@ -38,7 +37,12 @@ public class Edge {
 
             int tempX = x1;
             x1 = x2;
-            x2 = tempX ;
+            x2 = tempX;
         }
+    }
+
+    public void shortenByOnePixel() {
+        // minux 1px
+        y2 = y2 - 1;
     }
 }

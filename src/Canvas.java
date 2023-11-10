@@ -35,15 +35,16 @@ public class Canvas {
 	private LineRasterizer lineRasterizer;
 	private DottedLineRasterizer dottedLineRasterizer;
 	private PolygonRasterizer polygonRasterizer;
-	private int startClickX, startClickY, endClickX, endClickY;
+	private int startClickX, startClickY;
 
 	// DRAWN POLYGONS
 	private List<Polygon> polygons = new ArrayList<>();
 	// COLORED OBJECTS / SEED FILL
-	private List<SeedFiller> coloredObjects = new ArrayList<>();
+	private List<SeedFiller> seedFillObjects = new ArrayList<>();
+	private List<ScanLineFiller> scanLinedObjects = new ArrayList<>();
 	private Polygon polygon;
 	private Rectangle rectangle;
-	private boolean polygonMode = false;
+	private boolean polygonMode, rectangleMode, rectangleCreated = false;
 
 
 	public Canvas(int width, int height) {
@@ -95,16 +96,12 @@ public class Canvas {
 						System.out.println("Caps pressed again... Polygon mode turned off");
 						polygonMode = false;
 						clear(0x000000);
-						for (Polygon polygon : polygons) {
-							polygonRasterizer.rasterize(polygon);
-						}
-						for (SeedFiller coloredObject : coloredObjects) {
-							coloredObject.fill();
-						}
+						processObjects(polygons, seedFillObjects, polygonRasterizer);
 						panel.repaint();
 					} else {
+						rectangleMode = false;
 						System.out.println("Caps pressed... Polygon mode");
-						//clear polygon object
+						// reset
 						polygon = new Polygon();
 						polygonMode = true;
 					}
@@ -115,9 +112,25 @@ public class Canvas {
 					System.out.println("C pressed - CLEAR CANVAS");
 					clear(0x000000);
 					polygons.clear();
-					coloredObjects.clear();
+					seedFillObjects.clear();
+					scanLinedObjects.clear();
 					polygon = new Polygon();
 					panel.repaint();
+				}
+
+				if(keyEvent.getKeyCode() == KeyEvent.VK_R){
+					if (rectangleMode) {
+						System.out.println("R pressed again... Rectangle mode turned off");
+						rectangleMode = false;
+						clear(0x000000);
+						processObjects(polygons, seedFillObjects, polygonRasterizer);
+						panel.repaint();
+					} else {
+						polygonMode = false;
+						System.out.println("R pressed... Rectangle mode");
+						rectangleCreated = false;
+						rectangleMode = true;
+					}
 				}
 
 			}
@@ -136,21 +149,31 @@ public class Canvas {
 				if(polygon.getSize() > 1 && polygonMode) {
 					clear(0x000000);
 
-					//draw base of polygon
+					// draw base of polygon
 					lineRasterizer.rasterize(polygon.getPoint(0).x, polygon.getPoint(0).y, startClickX, startClickY, Color.YELLOW);
 
-					//draw drawn polygons
-					for (Polygon polygon : polygons) {
-						polygonRasterizer.rasterize(polygon);
-					}
+					// draw drawn objects
+					processObjects(polygons, seedFillObjects, polygonRasterizer);
 
-					//draw help lines
+					// draw polygon help lines
 					dottedLineRasterizer.rasterize(startClickX, startClickY,e.getX(), e.getY(), Color.YELLOW);
 					dottedLineRasterizer.rasterize(polygon.getPoints().get(0).x, polygon.getPoints().get(0).y,e.getX(), e.getY(), Color.YELLOW);
 
-					//draw colored objects
-					for (SeedFiller coloredObject : coloredObjects) {
-						coloredObject.fill();
+				}
+
+				if(rectangleMode) {
+					clear(0x000000);
+
+					// draw drawn objects
+					processObjects(polygons, seedFillObjects, polygonRasterizer);
+
+
+					// draw rectangle help lines
+					if(rectangleCreated){
+						dottedLineRasterizer.rasterize(rectangle.getPoint(0).x, rectangle.getPoint(0).y, e.getX(), rectangle.getPoint(0).y, Color.YELLOW); // top
+						dottedLineRasterizer.rasterize(e.getX(), rectangle.getPoint(0).y, e.getX(), e.getY(), Color.YELLOW); // right
+						dottedLineRasterizer.rasterize(e.getX(), e.getY(), rectangle.getPoint(0).x, e.getY(), Color.YELLOW); // bottom
+						dottedLineRasterizer.rasterize(rectangle.getPoint(0).x, e.getY(), rectangle.getPoint(0).x, rectangle.getPoint(0).y, Color.YELLOW); // left
 					}
 				}
 				panel.repaint();
@@ -172,7 +195,22 @@ public class Canvas {
 					polygons.add(polygon);
 				}
 
-				polygonRasterizer.rasterize(polygon);
+				if(rectangleMode){
+					Point p = new Point(e.getX(), e.getY());
+					if (!rectangleCreated) {
+						// start a new rectangle with the first point
+						rectangle = new Rectangle(p, p);
+						rectangleCreated = true;
+					} else {
+						// finish the current rectangle
+						rectangle = new Rectangle(rectangle.getPoint(0), p);
+						polygons.add(rectangle);
+						rectangleCreated = false;
+					}
+
+				}
+
+				processObjects(polygons, seedFillObjects, polygonRasterizer);
 
 				/*
 				if(e.getButton() == MouseEvent.BUTTON3){
@@ -186,8 +224,9 @@ public class Canvas {
 
 
 				if(e.getButton() == MouseEvent.BUTTON3){
-					ScanLineFiller scanLineFiller = new ScanLineFiller(lineRasterizer, polygonRasterizer, polygon);
+					ScanLineFiller scanLineFiller = new ScanLineFiller(lineRasterizer, polygon);
 					scanLineFiller.fill();
+					scanLinedObjects.add(scanLineFiller);
 					System.out.println("Scanline fill...");
 				}
 
@@ -209,17 +248,9 @@ public class Canvas {
 
 			@Override
 			public void mouseReleased(MouseEvent e) {
-				endClickX = e.getX();
-				endClickY = e.getY();
 				clear(0x000000);
 
-				for (Polygon polygon : polygons) {
-					polygonRasterizer.rasterize(polygon);
-				}
-
-				for (SeedFiller coloredObject : coloredObjects) {
-					coloredObject.fill();
-				}
+				processObjects(polygons, seedFillObjects, polygonRasterizer);
 
 				panel.repaint();
 
@@ -241,15 +272,28 @@ public class Canvas {
 		drawString(raster.getGraphics(), "", 575, 525);
 		panel.repaint();
 		clear(0x000000);
-		//Point p1 = new Point(200,200);
-		//Point p3 = new Point(400,400);
-		//Rectangle r1 = new Rectangle(p1,p3);
-		//polygonRasterizer.rasterize(r1);
 	}
 
 	public void drawString(Graphics g, String text, int x, int y) {
 		for (String line : text.split("\n")) {
 			g.drawString(line, x, y += g.getFontMetrics().getHeight());
+		}
+	}
+
+	public void processObjects(List<Polygon> polygons, List<SeedFiller> seedFillObjects, PolygonRasterizer polygonRasterizer) {
+		// load polygons && rectangles
+		for (Polygon polygon : polygons) {
+			polygonRasterizer.rasterize(polygon);
+		}
+
+		// load seed filled objects
+		for (SeedFiller coloredObject : seedFillObjects) {
+			coloredObject.fill();
+		}
+
+		// load scanline filled objects
+		for (ScanLineFiller coloredObject : scanLinedObjects) {
+			coloredObject.fill();
 		}
 	}
 

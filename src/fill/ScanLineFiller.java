@@ -1,32 +1,25 @@
 package fill;
 
-import model.Line;
+import model.*;
 import model.Point;
 import model.Polygon;
-import model.Edge;
 import rasterize.LineRasterizer;
-import rasterize.PolygonRasterizer;
-
 import java.util.ArrayList;
 import java.util.List;
 
 public class ScanLineFiller implements Filler {
-    private PolygonRasterizer polygonRasterizer;
     private LineRasterizer lineRasterizer;
-
     private Polygon polygon;
 
 
-    public ScanLineFiller(LineRasterizer lineRasterizer, PolygonRasterizer polygonRasterizer, Polygon polygon){
+    public ScanLineFiller(LineRasterizer lineRasterizer, Polygon polygon){
         this.lineRasterizer = lineRasterizer;
-        this.polygonRasterizer = polygonRasterizer;
         this.polygon = polygon;
     }
 
     @Override
     public void fill(){
         scanFill(polygon);
-
     }
 
     public void scanFill(Polygon polygon){
@@ -48,6 +41,8 @@ public class ScanLineFiller implements Filler {
             
             // změna orientace
             edge.orientate();
+            // zkraceni o 1px
+            edge.shortenByOnePixel();
             // přidání hrany do seznamu
             edges.add(edge);
         }
@@ -58,7 +53,7 @@ public class ScanLineFiller implements Filler {
         int yMax = polygon.getPoint(0).y;
 
         // get yMin yMax
-        for (int i = 0; i < polygon.getSize() - 1;i++) {
+        for (int i = 0; i < polygon.getSize();i++) {
             if(yMin > polygon.getPoint(i).y){
                 yMin = polygon.getPoint(i).y;
             }
@@ -66,9 +61,6 @@ public class ScanLineFiller implements Filler {
                 yMax = polygon.getPoint(i).y;
             }
         }
-
-        System.out.println(yMax);
-        System.out.println(yMin);
 
         // TODO: for cyklus od yMin po yMax
         // {
@@ -85,14 +77,12 @@ public class ScanLineFiller implements Filler {
             for (Edge edge : edges){
                 if (edge.isIntersection(i)) {
                     int intersect = edge.calcIntersection(i);
-                    //System.out.println(intersect);
                     intersections.add(intersect);
                 }
             }
 
             // TODO: Seřadit naležené průsečíky
             intersections = BubbleSort(intersections);
-            System.out.println(intersections);
 
             // TODO: Spojit lichý se sudým
             for (int j = 0; j < intersections.size(); j = j + 2) {
@@ -103,7 +93,17 @@ public class ScanLineFiller implements Filler {
         }
 
         // TODO: Obtáhnu polygon
-        // na to nemam naladu
+        for(int i = 0; i < polygon.getSize(); i++){
+            Point p1 = polygon.getPoint(i);
+            int indexB = i + 1;
+            if (indexB == polygon.getSize()) {
+                indexB = 0;
+            }
+
+            Point p2 = polygon.getPoint(indexB);
+
+            lineRasterizer.rasterize(new Line(p1, p2, 0xffff00)); // obtáhnutí polygonu
+        }
 
     }
 
