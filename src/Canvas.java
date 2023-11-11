@@ -46,8 +46,9 @@ public class Canvas {
 	private Polygon polygon;
 	private Polygon cutterGon; // here we go
 	private Rectangle rectangle;
-	private  Ellipse ellipse;
-	private boolean polygonMode, rectangleMode, rectangleCreated, ellipseMode, ellipseCreated = false;
+	private Ellipse ellipse;
+	private boolean polygonMode, rectangleMode, rectangleCreated, ellipseMode, ellipseCreated, fillChanged = false;
+	private int fillMode = 0;
 
 
 	public Canvas(int width, int height) {
@@ -160,6 +161,17 @@ public class Canvas {
 					}
 				}
 
+				if(keyEvent.getKeyCode() == KeyEvent.VK_Q){
+					if(!fillChanged){
+						System.out.println("ScanLine");
+						fillMode = 1;
+						fillChanged = true;
+					} else if (fillChanged) {
+						System.out.println("SeedFill");
+						fillMode = 0;
+						fillChanged = false;
+					}
+				}
 			}
 
 			@Override
@@ -306,22 +318,22 @@ public class Canvas {
 
 				processObjects(polygons, seedFillObjects, polygonRasterizer);
 
-				/*
-				if(e.getButton() == MouseEvent.BUTTON3){
-					SeedFiller seedFiller = new SeedFiller(raster, raster.getPixel(e.getX(), e.getY()), e.getX(), e.getY());
-					seedFiller.fill();
-					System.out.println("Seed fill...");
-					coloredObjects.add(seedFiller);
+				if(fillMode == 0){
+					if(e.getButton() == MouseEvent.BUTTON3){
+						SeedFiller seedFiller = new SeedFiller(raster, raster.getPixel(e.getX(), e.getY()), e.getX(), e.getY());
+						seedFiller.fill();
+						System.out.println("Seed fill...");
+						seedFillObjects.add(seedFiller);
+					}
 				}
 
-				 */
-
-
-				if(e.getButton() == MouseEvent.BUTTON3){
-					ScanLineFiller scanLineFiller = new ScanLineFiller(lineRasterizer, polygon);
-					scanLineFiller.fill();
-					scanLinedObjects.add(scanLineFiller);
-					System.out.println("Scanline fill...");
+				if(fillMode == 1){
+					if(e.getButton() == MouseEvent.BUTTON3){
+						ScanLineFiller scanLineFiller = new ScanLineFiller(lineRasterizer, polygon);
+						scanLineFiller.fill();
+						scanLinedObjects.add(scanLineFiller);
+						System.out.println("Scanline fill...");
+					}
 				}
 
 
