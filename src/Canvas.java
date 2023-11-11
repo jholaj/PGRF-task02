@@ -40,10 +40,11 @@ public class Canvas {
 
 	// DRAWN POLYGONS
 	private List<Polygon> polygons = new ArrayList<>();
-	// COLORED OBJECTS / SEED FILL
+	// COLORED OBJECTS / SEED FILL / SCAN LINE
 	private List<SeedFiller> seedFillObjects = new ArrayList<>();
 	private List<ScanLineFiller> scanLinedObjects = new ArrayList<>();
 	private Polygon polygon;
+	private Polygon cutterGon; // here we go
 	private Rectangle rectangle;
 	private  Ellipse ellipse;
 	private boolean polygonMode, rectangleMode, rectangleCreated, ellipseMode, ellipseCreated = false;

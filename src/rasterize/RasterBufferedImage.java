@@ -7,7 +7,6 @@ public class RasterBufferedImage implements Raster {
 
     private final BufferedImage img;
     private int color;
-    //vyresit vykreslovani mimo canvas
 
     public BufferedImage getImg() {
         return img;
@@ -39,7 +38,9 @@ public class RasterBufferedImage implements Raster {
 
     @Override
     public void setPixel(int x, int y, int color) {
-        img.setRGB(x, y, color);
+        if (x >= 0 && y >= 0 && x < getWidth() && y < getHeight()) {
+            img.setRGB(x, y, color);
+        }
     }
 
     @Override
