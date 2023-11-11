@@ -11,8 +11,6 @@ public class Edge {
         this.y2 = y2;
     }
 
-    // pridat zkraceni o 1
-
     public boolean isHorizontal() {
         return y1 == y2;
     }

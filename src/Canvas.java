@@ -36,6 +36,7 @@ public class Canvas {
 	private DottedLineRasterizer dottedLineRasterizer;
 	private PolygonRasterizer polygonRasterizer;
 	private int startClickX, startClickY;
+	private double finalHeight, finalWidth;
 
 	// DRAWN POLYGONS
 	private List<Polygon> polygons = new ArrayList<>();
@@ -44,7 +45,8 @@ public class Canvas {
 	private List<ScanLineFiller> scanLinedObjects = new ArrayList<>();
 	private Polygon polygon;
 	private Rectangle rectangle;
-	private boolean polygonMode, rectangleMode, rectangleCreated = false;
+	private  Ellipse ellipse;
+	private boolean polygonMode, rectangleMode, rectangleCreated, ellipseMode, ellipseCreated = false;
 
 
 	public Canvas(int width, int height) {
@@ -99,11 +101,13 @@ public class Canvas {
 						processObjects(polygons, seedFillObjects, polygonRasterizer);
 						panel.repaint();
 					} else {
-						rectangleMode = false;
-						System.out.println("Caps pressed... Polygon mode");
-						// reset
+						// start
 						polygon = new Polygon();
 						polygonMode = true;
+						// disable other modes
+						rectangleMode = false;
+						ellipseMode = false;
+						System.out.println("Caps pressed... Polygon mode");
 					}
 				}
 
@@ -126,10 +130,32 @@ public class Canvas {
 						processObjects(polygons, seedFillObjects, polygonRasterizer);
 						panel.repaint();
 					} else {
-						polygonMode = false;
 						System.out.println("R pressed... Rectangle mode");
+						// start
 						rectangleCreated = false;
 						rectangleMode = true;
+						// disable other modes
+						polygonMode = false;
+						ellipseMode = false;
+					}
+				}
+
+				// ellipse mode
+				if(keyEvent.getKeyCode() == KeyEvent.VK_E){
+					if (ellipseMode) {
+						System.out.println("E pressed again - Ellipse mode turned off");
+						ellipseMode = false;
+						clear(0x000000);
+						processObjects(polygons, seedFillObjects, polygonRasterizer);
+						panel.repaint();
+					} else {
+						System.out.println("E pressed... Ellipse mode");
+						// start
+						ellipseCreated = false;
+						ellipseMode = true;
+						// disable other modes
+						polygonMode = false;
+						rectangleMode = false;
 					}
 				}
 
@@ -167,7 +193,6 @@ public class Canvas {
 					// draw drawn objects
 					processObjects(polygons, seedFillObjects, polygonRasterizer);
 
-
 					// draw rectangle help lines
 					if(rectangleCreated){
 						dottedLineRasterizer.rasterize(rectangle.getPoint(0).x, rectangle.getPoint(0).y, e.getX(), rectangle.getPoint(0).y, Color.YELLOW); // top
@@ -176,6 +201,41 @@ public class Canvas {
 						dottedLineRasterizer.rasterize(rectangle.getPoint(0).x, e.getY(), rectangle.getPoint(0).x, rectangle.getPoint(0).y, Color.YELLOW); // left
 					}
 				}
+
+				if(ellipseMode  && ellipseCreated){
+					double width = Math.abs(e.getX() - startClickX);
+					double height = Math.abs(e.getY() - startClickY);
+					Ellipse tempEllipse = new Ellipse(new Point(startClickX, startClickY), width, height);
+					tempEllipse.createEllipse();
+					clear(0x000000);
+
+					processObjects(polygons, seedFillObjects, polygonRasterizer);
+
+					// min / max of ellipse
+					Point[] minMax = findMinMaxOfEllipse(tempEllipse);
+
+					rectangle = new Rectangle(minMax[0], minMax[1]);
+
+					// help bounding rectangle
+					// all quadrants
+					dottedLineRasterizer.rasterize(minMax[0].x, minMax[0].y, minMax[1].x, minMax[0].y, Color.YELLOW); // top
+					dottedLineRasterizer.rasterize(minMax[1].x, minMax[0].y, minMax[1].x, minMax[1].y, Color.YELLOW); // right
+					dottedLineRasterizer.rasterize(minMax[1].x, minMax[1].y, minMax[0].x, minMax[1].y, Color.YELLOW); // bottom
+					dottedLineRasterizer.rasterize(minMax[0].x, minMax[1].y, minMax[0].x, minMax[0].y, Color.YELLOW); // left
+
+					// temporary ellipse
+					for (int i = 0; i < tempEllipse.getSize() - 1; i++) {
+						Point p1 = tempEllipse.getPoint(i);
+						Point p2 = tempEllipse.getPoint(i + 1);
+						dottedLineRasterizer.rasterize(p1.x, p1.y, p2.x, p2.y, Color.YELLOW);
+					}
+
+					// set final height & width from temp ellipse
+					finalHeight = height;
+					finalWidth = width;
+
+				}
+
 				panel.repaint();
 
 			}
@@ -189,11 +249,15 @@ public class Canvas {
 				startClickX = e.getX();
 				startClickY = e.getY();
 
+				// POLYGON
+
 				if(polygonMode){
 					Point p = new Point(e.getX(), e.getY());
 					polygon.addPoint(p);
 					polygons.add(polygon);
 				}
+
+				// RECTANGLE
 
 				if(rectangleMode){
 					Point p = new Point(e.getX(), e.getY());
@@ -208,6 +272,35 @@ public class Canvas {
 						rectangleCreated = false;
 					}
 
+				}
+
+				// ELLIPSE
+
+				if(ellipseMode){
+					Point p = new Point(e.getX(), e.getY());
+					if(!ellipseCreated){
+						ellipse = new Ellipse(p, 0, 0);
+						ellipseCreated = true;
+					} else {
+						ellipse.createEllipse();
+						ellipse = new Ellipse(ellipse.getPoint(0), finalWidth, finalHeight);
+						polygons.add(ellipse);
+						ellipseCreated = false;
+
+						// bounding rectangle
+						Rectangle boundingRectangle = new Rectangle(
+								new Point(
+										ellipse.getCenter().getX() - ellipse.getWidth(),
+										ellipse.getCenter().getY() - ellipse.getHeight()
+								),
+								new Point(
+										ellipse.getCenter().getX() + ellipse.getWidth(),
+										ellipse.getCenter().getY() + ellipse.getHeight()
+								)
+						);
+
+						polygons.add(boundingRectangle);
+					}
 				}
 
 				processObjects(polygons, seedFillObjects, polygonRasterizer);
@@ -281,7 +374,7 @@ public class Canvas {
 	}
 
 	public void processObjects(List<Polygon> polygons, List<SeedFiller> seedFillObjects, PolygonRasterizer polygonRasterizer) {
-		// load polygons && rectangles
+		// load polygons && rectangles && ellipses
 		for (Polygon polygon : polygons) {
 			polygonRasterizer.rasterize(polygon);
 		}
@@ -295,6 +388,23 @@ public class Canvas {
 		for (ScanLineFiller coloredObject : scanLinedObjects) {
 			coloredObject.fill();
 		}
+	}
+
+	public Point[] findMinMaxOfEllipse(Ellipse ellipse) {
+		int minX = Integer.MAX_VALUE;
+		int maxX = Integer.MIN_VALUE;
+		int minY = Integer.MAX_VALUE;
+		int maxY = Integer.MIN_VALUE;
+
+		for (int i = 0; i < ellipse.getSize() - 1; i++) {
+			Point p = ellipse.getPoint(i);
+			minX = Math.min(minX, p.x);
+			maxX = Math.max(maxX, p.x);
+			minY = Math.min(minY, p.y);
+			maxY = Math.max(maxY, p.y);
+		}
+
+		return new Point[]{new Point(minX, minY), new Point(maxX, maxY)};
 	}
 
 	public static void main(String[] args) {
