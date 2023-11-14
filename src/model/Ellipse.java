@@ -33,4 +33,12 @@ public class Ellipse extends Polygon {
             addPoint(new Point(dx, dy));
         }
     }
+
+    public Polygon convertToPolygon() {
+        Polygon polygon = new Polygon();
+        for (Point point : getPoints()) {
+            polygon.addPoint(point);
+        }
+        return polygon;
+    }
 }

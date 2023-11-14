@@ -15,7 +15,6 @@ public class Edge {
         return y1 == y2;
     }
 
-
     public boolean isIntersection(int y) {
         return (y >= y1 && y <= y2);
     }

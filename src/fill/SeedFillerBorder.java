@@ -5,40 +5,38 @@ import rasterize.Raster;
 public class SeedFillerBorder implements Filler{
 
     private Raster raster;
-
     private int x, y;
-    private int barvaHranice, barvaVyplne;
+    private int barvaHranice;
 
-    public SeedFillerBorder(Raster raster, int barvaHranice, int barvaVyplne, int x, int y) {
+    public SeedFillerBorder(Raster raster, int barvaHranice, int x, int y) {
         this.raster = raster;
         this.barvaHranice = barvaHranice;
-        this.barvaVyplne = barvaVyplne;
         this.x = x;
         this.y = y;
     }
 
     @Override
-    public void fill(){
-        seedFill(x,y);
+    public void fill(int color){
+        seedFillBorder(x,y, color);
     }
 
-    private void seedFill(int x, int y) {
+    private void seedFillBorder(int x, int y, int color) {
         //alg
         // 1. načtu barvu pixelu na souřadnici x, y
         int pixelColor = raster.getPixel(x, y);
 
         // 2. podmínka: pokud se barva hranice a barva výplně rovná načtené => neobarvuji
-        if(pixelColor == barvaHranice && pixelColor == barvaVyplne){
+        if(!(pixelColor != barvaHranice || pixelColor != color)){
             return;
         } else {
             // 3. obarvím
-            raster.setPixel(x, y, 0xff0000);
+            raster.setPixel(x, y, color);
         }
 
-        seedFill(x + 1, y);
-        seedFill(x - 1,y);
-        seedFill(x, y + 1);
-        seedFill(x, y - 1);
+        seedFillBorder(x + 1, y, color);
+        seedFillBorder(x - 1,y, color);
+        seedFillBorder(x, y + 1, color);
+        seedFillBorder(x, y - 1, color);
         // 4. 4x zavolám seedFill (pro 4 sousedy)
 
     }

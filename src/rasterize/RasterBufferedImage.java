@@ -33,7 +33,11 @@ public class RasterBufferedImage implements Raster {
 
     @Override
     public int getPixel(int x, int y) {
-        return img.getRGB(x, y);
+        if ((x >= 0 && y >= 0) && (x < getWidth() && y < getHeight())) {
+            return img.getRGB(x, y);
+        } else {
+            throw new RuntimeException("souradnice x nebo y jsou mimo obraz...");
+        }
     }
 
     @Override

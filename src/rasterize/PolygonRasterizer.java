@@ -6,9 +6,11 @@ import model.Polygon;
 
 public class PolygonRasterizer {
     private LineRasterizer lineRasterizer;
+    private int color;
 
-    public PolygonRasterizer(LineRasterizer lineRasterizer) {
+    public PolygonRasterizer(LineRasterizer lineRasterizer, int color) {
         this.lineRasterizer = lineRasterizer;
+        this.color = color;
     }
 
     public void rasterize(Polygon polygon) {
@@ -25,7 +27,7 @@ public class PolygonRasterizer {
             Point pointA = polygon.getPoint(indexA);
             Point pointB = polygon.getPoint(indexB);
 
-            lineRasterizer.rasterize(new Line(pointA, pointB, 0xffff00));
+            lineRasterizer.rasterize(new Line(pointA, pointB, color));
         }
     }
 }

@@ -1,6 +1,6 @@
 package fill;
 
 public interface Filler {
-    void fill();
+    void fill(int color);
 
 }

@@ -1,17 +1,18 @@
 import fill.ScanLineFiller;
 import fill.SeedFiller;
 import fill.SeedFillerBorder;
+import fill.SeedFillerStack;
 import model.*;
 import rasterize.*;
 
 import java.awt.BorderLayout;
-import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.Graphics;
 import java.awt.event.*;
-import java.awt.image.BufferedImage;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 import javax.swing.JFrame;
 import javax.swing.JPanel;
@@ -35,20 +36,31 @@ public class Canvas {
 	private LineRasterizer lineRasterizer;
 	private DottedLineRasterizer dottedLineRasterizer;
 	private PolygonRasterizer polygonRasterizer;
+	private PolygonRasterizer borderRasterizer;
 	private int startClickX, startClickY;
 	private double finalHeight, finalWidth;
 
 	// DRAWN POLYGONS
 	private List<Polygon> polygons = new ArrayList<>();
+	private List<Polygon> bordergons = new ArrayList<>();
+
 	// COLORED OBJECTS / SEED FILL / SCAN LINE
 	private List<SeedFiller> seedFillObjects = new ArrayList<>();
 	private List<ScanLineFiller> scanLinedObjects = new ArrayList<>();
+	private List<SeedFillerStack> seedFillStackObjects = new ArrayList<>();
+	private List<SeedFillerBorder> seedFillBorderObjects = new ArrayList<>();
+
 	private Polygon polygon;
-	private Polygon cutterGon; // here we go
+	private Polygon borderGon;
 	private Rectangle rectangle;
 	private Ellipse ellipse;
-	private boolean polygonMode, rectangleMode, rectangleCreated, ellipseMode, ellipseCreated, fillChanged = false;
-	private int fillMode = 0;
+	private boolean polygonMode, rectangleMode, rectangleCreated, ellipseMode, ellipseCreated, borderMode = false;
+	// fills
+	String[] fillModeNames = {"Seed Fill (Blue)", "Scanline Fill (Red)", "Seed Fill Stack (Green)", "Seed Fill Border (?)"};
+	Set<String> activeModes = new HashSet<>();
+	int fillMode = 0;
+	int outlineColor = 0xf0f0f0f0;
+	int borderOutlineColor = 0x8B0000;
 
 
 	public Canvas(int width, int height) {
@@ -60,12 +72,13 @@ public class Canvas {
 		frame.setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
 		raster = new RasterBufferedImage(width, height);
 
-		lineRasterizer = new LineRasterizerGraphics(raster);
-		dottedLineRasterizer = new DottedLineRasterizer(raster, 10);
-		polygonRasterizer = new PolygonRasterizer(lineRasterizer);
-
+		lineRasterizer = new LineRasterizerGraphics(raster, outlineColor);
+		dottedLineRasterizer = new DottedLineRasterizer(raster, 10, outlineColor);
+		polygonRasterizer = new PolygonRasterizer(lineRasterizer, outlineColor);
+		borderRasterizer = new PolygonRasterizer(lineRasterizer, borderOutlineColor); // diff color
 
 		polygon = new Polygon();
+		borderGon = new Polygon();
 
 		panel = new JPanel() {
 			private static final long serialVersionUID = 1L;
@@ -95,12 +108,14 @@ public class Canvas {
 			@Override
 			public void keyPressed(KeyEvent keyEvent) {
 
+				// POLYGON
+
 				if(keyEvent.getKeyCode() == KeyEvent.VK_CAPS_LOCK){
 					if (polygonMode) {
 						System.out.println("Caps pressed again... Polygon mode turned off");
 						polygonMode = false;
 						clear(0x000000);
-						processObjects(polygons, seedFillObjects, polygonRasterizer);
+						processObjects();
 						panel.repaint();
 					} else {
 						// start
@@ -109,27 +124,37 @@ public class Canvas {
 						// disable other modes
 						rectangleMode = false;
 						ellipseMode = false;
+						borderMode = false;
+						clear(0x000000);
+						processObjects();
 						System.out.println("Caps pressed... Polygon mode");
 					}
 				}
 
 				// CLEAR CANVAS
+
 				if(keyEvent.getKeyCode() == KeyEvent.VK_C){
 					System.out.println("C pressed - CLEAR CANVAS");
 					clear(0x000000);
+					drawString(raster.getGraphics(), "POLYGON MODE - CAPSLOCK\nRECTANGLE MODE - R\nELLIPSE MODE - E\nCHANGE FILL MODE - Q\nCLEAR CANVAS - C", 590, 500);
+					drawString(raster.getGraphics(), "ACTIVE MOD & FILL: " + checkActiveModes(fillModeNames),0,0);
 					polygons.clear();
+					bordergons.clear();
 					seedFillObjects.clear();
+					seedFillStackObjects.clear();
 					scanLinedObjects.clear();
 					polygon = new Polygon();
 					panel.repaint();
 				}
+
+				// RECTANGLES
 
 				if(keyEvent.getKeyCode() == KeyEvent.VK_R){
 					if (rectangleMode) {
 						System.out.println("R pressed again... Rectangle mode turned off");
 						rectangleMode = false;
 						clear(0x000000);
-						processObjects(polygons, seedFillObjects, polygonRasterizer);
+						processObjects();
 						panel.repaint();
 					} else {
 						System.out.println("R pressed... Rectangle mode");
@@ -139,16 +164,20 @@ public class Canvas {
 						// disable other modes
 						polygonMode = false;
 						ellipseMode = false;
+						borderMode = false;
+						clear(0x000000);
+						processObjects();
 					}
 				}
 
-				// ellipse mode
+				// ELLIPSE
+
 				if(keyEvent.getKeyCode() == KeyEvent.VK_E){
 					if (ellipseMode) {
 						System.out.println("E pressed again - Ellipse mode turned off");
 						ellipseMode = false;
 						clear(0x000000);
-						processObjects(polygons, seedFillObjects, polygonRasterizer);
+						processObjects();
 						panel.repaint();
 					} else {
 						System.out.println("E pressed... Ellipse mode");
@@ -158,20 +187,42 @@ public class Canvas {
 						// disable other modes
 						polygonMode = false;
 						rectangleMode = false;
+						borderMode = false;
+						clear(0x000000);
+						processObjects();
 					}
 				}
 
+				// CHANGE FILL (SEED -> SCAN)
+
 				if(keyEvent.getKeyCode() == KeyEvent.VK_Q){
-					if(!fillChanged){
-						System.out.println("ScanLine");
-						fillMode = 1;
-						fillChanged = true;
-					} else if (fillChanged) {
-						System.out.println("SeedFill");
-						fillMode = 0;
-						fillChanged = false;
+					fillMode = (fillMode + 1) % fillModeNames.length; // platne indexy
+					System.out.println(fillModeNames[fillMode]);
+					clear(0x000000);
+					processObjects();
+				}
+
+				// CLIPPER
+
+				if(keyEvent.getKeyCode() == KeyEvent.VK_X){
+					if(borderMode){
+						System.out.println("Bordergon mode turned off...");
+						borderMode = false;
+						clear(0x000000);
+						processObjects();
+						panel.repaint();
+					} else {
+						System.out.println("Border");
+						borderGon = new Polygon();
+						borderMode = true;
+						polygonMode = false;
+						rectangleMode = false;
+						ellipseMode = false;
+						clear(0x000000);
+						processObjects();
 					}
 				}
+
 			}
 
 			@Override
@@ -189,14 +240,29 @@ public class Canvas {
 					clear(0x000000);
 
 					// draw base of polygon
-					lineRasterizer.rasterize(polygon.getPoint(0).x, polygon.getPoint(0).y, startClickX, startClickY, Color.YELLOW);
+					lineRasterizer.rasterize(polygon.getPoint(0).x, polygon.getPoint(0).y, startClickX, startClickY, outlineColor);
 
 					// draw drawn objects
-					processObjects(polygons, seedFillObjects, polygonRasterizer);
+					processObjects();
 
 					// draw polygon help lines
-					dottedLineRasterizer.rasterize(startClickX, startClickY,e.getX(), e.getY(), Color.YELLOW);
-					dottedLineRasterizer.rasterize(polygon.getPoints().get(0).x, polygon.getPoints().get(0).y,e.getX(), e.getY(), Color.YELLOW);
+					dottedLineRasterizer.rasterize(startClickX, startClickY,e.getX(), e.getY(), outlineColor);
+					dottedLineRasterizer.rasterize(polygon.getPoints().get(0).x, polygon.getPoints().get(0).y,e.getX(), e.getY(), outlineColor);
+
+				}
+
+				if(borderGon.getSize() > 1 && borderMode) {
+					clear(0x000000);
+
+					// draw base of bordergon
+					lineRasterizer.rasterize(borderGon.getPoint(0).x, borderGon.getPoint(0).y, startClickX, startClickY, borderOutlineColor);
+
+					// draw drawn objects
+					processObjects();
+
+					// draw polygon help lines
+					dottedLineRasterizer.rasterize(startClickX, startClickY,e.getX(), e.getY(), borderOutlineColor);
+					dottedLineRasterizer.rasterize(borderGon.getPoints().get(0).x, borderGon.getPoints().get(0).y,e.getX(), e.getY(), borderOutlineColor);
 
 				}
 
@@ -204,14 +270,14 @@ public class Canvas {
 					clear(0x000000);
 
 					// draw drawn objects
-					processObjects(polygons, seedFillObjects, polygonRasterizer);
+					processObjects();
 
 					// draw rectangle help lines
 					if(rectangleCreated){
-						dottedLineRasterizer.rasterize(rectangle.getPoint(0).x, rectangle.getPoint(0).y, e.getX(), rectangle.getPoint(0).y, Color.YELLOW); // top
-						dottedLineRasterizer.rasterize(e.getX(), rectangle.getPoint(0).y, e.getX(), e.getY(), Color.YELLOW); // right
-						dottedLineRasterizer.rasterize(e.getX(), e.getY(), rectangle.getPoint(0).x, e.getY(), Color.YELLOW); // bottom
-						dottedLineRasterizer.rasterize(rectangle.getPoint(0).x, e.getY(), rectangle.getPoint(0).x, rectangle.getPoint(0).y, Color.YELLOW); // left
+						dottedLineRasterizer.rasterize(rectangle.getPoint(0).x, rectangle.getPoint(0).y, e.getX(), rectangle.getPoint(0).y, outlineColor); // top
+						dottedLineRasterizer.rasterize(e.getX(), rectangle.getPoint(0).y, e.getX(), e.getY(), outlineColor); // right
+						dottedLineRasterizer.rasterize(e.getX(), e.getY(), rectangle.getPoint(0).x, e.getY(), outlineColor); // bottom
+						dottedLineRasterizer.rasterize(rectangle.getPoint(0).x, e.getY(), rectangle.getPoint(0).x, rectangle.getPoint(0).y, outlineColor); // left
 					}
 				}
 
@@ -222,7 +288,7 @@ public class Canvas {
 					tempEllipse.createEllipse();
 					clear(0x000000);
 
-					processObjects(polygons, seedFillObjects, polygonRasterizer);
+					processObjects();
 
 					// min / max of ellipse
 					Point[] minMax = findMinMaxOfEllipse(tempEllipse);
@@ -231,16 +297,16 @@ public class Canvas {
 
 					// help bounding rectangle
 					// all quadrants
-					dottedLineRasterizer.rasterize(minMax[0].x, minMax[0].y, minMax[1].x, minMax[0].y, Color.YELLOW); // top
-					dottedLineRasterizer.rasterize(minMax[1].x, minMax[0].y, minMax[1].x, minMax[1].y, Color.YELLOW); // right
-					dottedLineRasterizer.rasterize(minMax[1].x, minMax[1].y, minMax[0].x, minMax[1].y, Color.YELLOW); // bottom
-					dottedLineRasterizer.rasterize(minMax[0].x, minMax[1].y, minMax[0].x, minMax[0].y, Color.YELLOW); // left
+					dottedLineRasterizer.rasterize(minMax[0].x, minMax[0].y, minMax[1].x, minMax[0].y, outlineColor); // top
+					dottedLineRasterizer.rasterize(minMax[1].x, minMax[0].y, minMax[1].x, minMax[1].y, outlineColor); // right
+					dottedLineRasterizer.rasterize(minMax[1].x, minMax[1].y, minMax[0].x, minMax[1].y, outlineColor); // bottom
+					dottedLineRasterizer.rasterize(minMax[0].x, minMax[1].y, minMax[0].x, minMax[0].y, outlineColor); // left
 
 					// temporary ellipse
 					for (int i = 0; i < tempEllipse.getSize() - 1; i++) {
 						Point p1 = tempEllipse.getPoint(i);
 						Point p2 = tempEllipse.getPoint(i + 1);
-						dottedLineRasterizer.rasterize(p1.x, p1.y, p2.x, p2.y, Color.YELLOW);
+						dottedLineRasterizer.rasterize(p1.x, p1.y, p2.x, p2.y, outlineColor);
 					}
 
 					// set final height & width from temp ellipse
@@ -281,8 +347,10 @@ public class Canvas {
 					} else {
 						// finish the current rectangle
 						rectangle = new Rectangle(rectangle.getPoint(0), p);
-						polygons.add(rectangle);
+						polygon = rectangle.convertToPolygon(rectangle); // convert for scanline
+						polygons.add(polygon);
 						rectangleCreated = false;
+						rectangleMode = false;
 					}
 
 				}
@@ -297,8 +365,10 @@ public class Canvas {
 					} else {
 						ellipse.createEllipse();
 						ellipse = new Ellipse(ellipse.getPoint(0), finalWidth, finalHeight);
-						polygons.add(ellipse);
+						polygon = ellipse.convertToPolygon(); // convert for scanline
+						polygons.add(polygon);
 						ellipseCreated = false;
+						ellipseMode = false;
 
 						// bounding rectangle
 						Rectangle boundingRectangle = new Rectangle(
@@ -316,37 +386,51 @@ public class Canvas {
 					}
 				}
 
-				processObjects(polygons, seedFillObjects, polygonRasterizer);
+				// BORDER MODE
+
+				if(borderMode){
+					Point p = new Point(e.getX(), e.getY());
+					borderGon.addPoint(p);
+					bordergons.add(borderGon);
+				}
 
 				if(fillMode == 0){
 					if(e.getButton() == MouseEvent.BUTTON3){
 						SeedFiller seedFiller = new SeedFiller(raster, raster.getPixel(e.getX(), e.getY()), e.getX(), e.getY());
-						seedFiller.fill();
-						System.out.println("Seed fill...");
+						seedFiller.fill(0x0000FF);
 						seedFillObjects.add(seedFiller);
+						System.out.println("Seed fill... // BLUE");
 					}
 				}
 
 				if(fillMode == 1){
 					if(e.getButton() == MouseEvent.BUTTON3){
-						ScanLineFiller scanLineFiller = new ScanLineFiller(lineRasterizer, polygon);
-						scanLineFiller.fill();
+						ScanLineFiller scanLineFiller = new ScanLineFiller(lineRasterizer, polygon, outlineColor);
+						scanLineFiller.fill(0xFF0000);
 						scanLinedObjects.add(scanLineFiller);
-						System.out.println("Scanline fill...");
+						System.out.println("Scanline fill... // RED");
 					}
 				}
 
-
-				/*
-				if(e.getButton() == MouseEvent.BUTTON3){
-					//SeedFillerBorder seedFillerBorder = new SeedFillerBorder(raster, );
-					//seedFillerBorder.fill();
-					System.out.println("Seed fill border...");
-					//coloredObjects.add(seedFillerBorder);
+				if(fillMode == 2){
+					if(e.getButton() == MouseEvent.BUTTON3){
+						SeedFillerStack seedFillerStack = new SeedFillerStack(raster, raster.getPixel(e.getX(), e.getY()), e.getX(), e.getY());
+						seedFillerStack.fill(0x008000);
+						seedFillStackObjects.add(seedFillerStack);
+						System.out.println("Seed Fill Stack... // GREEN");
+					}
 				}
 
-				 */
+				if(fillMode == 3){
+					if(e.getButton() == MouseEvent.BUTTON3){
+						SeedFillerBorder seedFillerBorder = new SeedFillerBorder(raster, borderOutlineColor, e.getX(), e.getY());
+						seedFillerBorder.fill(0x008000);
+						seedFillBorderObjects.add(seedFillerBorder);
+						System.out.println("Seed Fill Border... // GREEN");
+					}
+				}
 
+				processObjects();
 				panel.repaint();
 
 
@@ -356,7 +440,7 @@ public class Canvas {
 			public void mouseReleased(MouseEvent e) {
 				clear(0x000000);
 
-				processObjects(polygons, seedFillObjects, polygonRasterizer);
+				processObjects();
 
 				panel.repaint();
 
@@ -375,9 +459,10 @@ public class Canvas {
 	}
 
 	public void start() {
-		drawString(raster.getGraphics(), "", 575, 525);
-		panel.repaint();
 		clear(0x000000);
+		drawString(raster.getGraphics(), "POLYGON MODE - CAPSLOCK\nRECTANGLE MODE - R\nELLIPSE MODE - E\nCHANGE FILL MODE - Q\nCLEAR CANVAS - C", 590, 500);
+		drawString(raster.getGraphics(), "ACTIVE MOD & FILL: " + checkActiveModes(fillModeNames),0,0);
+		panel.repaint();
 	}
 
 	public void drawString(Graphics g, String text, int x, int y) {
@@ -386,21 +471,41 @@ public class Canvas {
 		}
 	}
 
-	public void processObjects(List<Polygon> polygons, List<SeedFiller> seedFillObjects, PolygonRasterizer polygonRasterizer) {
+	public void processObjects() {
+		drawString(raster.getGraphics(), "ACTIVE MOD & FILL: " + checkActiveModes(fillModeNames),0,0);
+
+
 		// load polygons && rectangles && ellipses
 		for (Polygon polygon : polygons) {
 			polygonRasterizer.rasterize(polygon);
 		}
 
+		// diff border polygons (seed fill border)
+		for (Polygon polygon : bordergons) {
+			borderRasterizer.rasterize(polygon);
+		}
+
 		// load seed filled objects
 		for (SeedFiller coloredObject : seedFillObjects) {
-			coloredObject.fill();
+			coloredObject.fill(0x0000FF); // BLUE
+		}
+
+		// load seed filled border objects
+		for (SeedFillerBorder coloredObject : seedFillBorderObjects) {
+			coloredObject.fill(0xf0f0FF); // idk
+		}
+
+		// load seed filled stack objects
+		for (SeedFillerStack coloredObject : seedFillStackObjects) {
+			coloredObject.fill(0x008000); // GREEN
 		}
 
 		// load scanline filled objects
 		for (ScanLineFiller coloredObject : scanLinedObjects) {
-			coloredObject.fill();
+			coloredObject.fill(0xFF0000); // RED
 		}
+
+		drawString(raster.getGraphics(), "POLYGON MODE - CAPSLOCK\nRECTANGLE MODE - R\nELLIPSE MODE - E\nCHANGE FILL MODE - Q\nCLEAR CANVAS - C", 590, 500);
 	}
 
 	public Point[] findMinMaxOfEllipse(Ellipse ellipse) {
@@ -419,6 +524,28 @@ public class Canvas {
 
 		return new Point[]{new Point(minX, minY), new Point(maxX, maxY)};
 	}
+
+	public String checkActiveModes(String[] fillModeNames) {
+		activeModes.clear();
+
+		// modes
+		boolean[] modes = {polygonMode, rectangleMode, ellipseMode, borderMode};
+		String[] modeNames = {"Polygon", "Rectangle", "Ellipse", "Border"};
+
+		for (int i = 0; i < modes.length; i++) {
+			if (modes[i]) {
+				activeModes.add(modeNames[i]);
+			}
+		}
+
+		if(fillMode >= 0 && fillMode < fillModeNames.length) {
+			activeModes.add(fillModeNames[fillMode]);
+		}
+
+		return String.join(", ",activeModes);
+
+	}
+
 
 	public static void main(String[] args) {
 		SwingUtilities.invokeLater(() -> new Canvas(800, 600).start());

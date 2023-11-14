@@ -17,12 +17,11 @@ public class SeedFiller implements Filler {
     }
 
     @Override
-    public void fill(){
-        seedFill(x, y);
-
+    public void fill(int color){
+        seedFill(x, y, color);
     }
 
-    private void seedFill(int x, int y) {
+    private void seedFill(int x, int y, int color) {
         //alg
         // 1. načtu barvu pixelu na souřadnici x, y
         int pixelColor = raster.getPixel(x, y);
@@ -32,13 +31,13 @@ public class SeedFiller implements Filler {
             return;
         } else {
             // 3. obarvím
-            raster.setPixel(x, y, 0xff0000);
+            raster.setPixel(x, y, color);
         }
 
-        seedFill(x + 1, y);
-        seedFill(x - 1,y);
-        seedFill(x, y + 1);
-        seedFill(x, y - 1);
+        seedFill(x + 1, y, color);
+        seedFill(x - 1,y, color);
+        seedFill(x, y + 1, color);
+        seedFill(x, y - 1, color);
         // 4. 4x zavolám seedFill (pro 4 sousedy)
 
     }

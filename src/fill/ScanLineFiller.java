@@ -10,19 +10,21 @@ import java.util.List;
 public class ScanLineFiller implements Filler {
     private LineRasterizer lineRasterizer;
     private Polygon polygon;
+    private int outlineColor;
 
 
-    public ScanLineFiller(LineRasterizer lineRasterizer, Polygon polygon){
+    public ScanLineFiller(LineRasterizer lineRasterizer, Polygon polygon, int outlineColor){
         this.lineRasterizer = lineRasterizer;
         this.polygon = polygon;
+        this.outlineColor = outlineColor;
     }
 
     @Override
-    public void fill(){
-        scanFill(polygon);
+    public void fill(int color){
+        scanFill(polygon, color);
     }
 
-    public void scanFill(Polygon polygon){
+    public void scanFill(Polygon polygon, int color){
 
         ArrayList<Edge> edges = new ArrayList<>();
 
@@ -87,7 +89,7 @@ public class ScanLineFiller implements Filler {
             // TODO: Spojit lichý se sudým
             for (int j = 0; j < intersections.size(); j = j + 2) {
                 if (intersections.size() > j + 1) {
-                    lineRasterizer.rasterize(new Line(new Point(intersections.get(j), i), new Point(intersections.get(j + 1), i), 0xff0000));
+                    lineRasterizer.rasterize(new Line(new Point(intersections.get(j), i), new Point(intersections.get(j + 1), i), color));
                 }
             }
         }
@@ -102,7 +104,7 @@ public class ScanLineFiller implements Filler {
 
             Point p2 = polygon.getPoint(indexB);
 
-            lineRasterizer.rasterize(new Line(p1, p2, 0xffff00)); // obtáhnutí polygonu
+            lineRasterizer.rasterize(new Line(p1, p2, outlineColor)); // obtáhnutí polygonu
         }
 
     }
