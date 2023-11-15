@@ -56,10 +56,11 @@ public class Canvas {
 	private Ellipse ellipse;
 	private boolean polygonMode, rectangleMode, rectangleCreated, ellipseMode, ellipseCreated, borderMode = false;
 	// fills
-	String[] fillModeNames = {"Seed Fill (Blue)", "Scanline Fill (Red)", "Seed Fill Stack (Green)", "Seed Fill Border (?)"};
+	String[] fillModeNames = {"Seed Fill (Blue)", "Scanline Fill (Red)", "Seed Fill Stack (Green)", "Seed Fill Border (Pink)"};
 	Set<String> activeModes = new HashSet<>();
 	int fillMode = 0;
-	int outlineColor = 0xf0f0f0f0;
+	// colors
+	int outlineColor = 0xf0f0f0;
 	int borderOutlineColor = 0x8B0000;
 
 
@@ -200,19 +201,20 @@ public class Canvas {
 					System.out.println(fillModeNames[fillMode]);
 					clear(0x000000);
 					processObjects();
+					panel.repaint();
 				}
 
-				// CLIPPER
+				// SF BORDER
 
 				if(keyEvent.getKeyCode() == KeyEvent.VK_X){
 					if(borderMode){
-						System.out.println("Bordergon mode turned off...");
+						System.out.println("X pressed again... Bordergon mode turned off...");
 						borderMode = false;
 						clear(0x000000);
 						processObjects();
 						panel.repaint();
 					} else {
-						System.out.println("Border");
+						System.out.println("X pressed... Border mode");
 						borderGon = new Polygon();
 						borderMode = true;
 						polygonMode = false;
@@ -290,8 +292,8 @@ public class Canvas {
 
 					processObjects();
 
-					// min / max of ellipse
-					Point[] minMax = findMinMaxOfEllipse(tempEllipse);
+					// min / max of ellipse for bounding rectangle
+					Point[] minMax = tempEllipse.findMinMaxOfEllipse();
 
 					rectangle = new Rectangle(minMax[0], minMax[1]);
 
@@ -394,6 +396,8 @@ public class Canvas {
 					bordergons.add(borderGon);
 				}
 
+				// FILLS
+
 				if(fillMode == 0){
 					if(e.getButton() == MouseEvent.BUTTON3){
 						SeedFiller seedFiller = new SeedFiller(raster, raster.getPixel(e.getX(), e.getY()), e.getX(), e.getY());
@@ -424,26 +428,22 @@ public class Canvas {
 				if(fillMode == 3){
 					if(e.getButton() == MouseEvent.BUTTON3){
 						SeedFillerBorder seedFillerBorder = new SeedFillerBorder(raster, borderOutlineColor, e.getX(), e.getY());
-						seedFillerBorder.fill(0x008000);
+						seedFillerBorder.fill(0xB00B69); // PINK
 						seedFillBorderObjects.add(seedFillerBorder);
-						System.out.println("Seed Fill Border... // GREEN");
+						System.out.println("Seed Fill Border... // PINK");
 					}
 				}
 
 				processObjects();
 				panel.repaint();
 
-
 			}
 
 			@Override
 			public void mouseReleased(MouseEvent e) {
 				clear(0x000000);
-
 				processObjects();
-
 				panel.repaint();
-
 			}
 		});
 
@@ -474,7 +474,6 @@ public class Canvas {
 	public void processObjects() {
 		drawString(raster.getGraphics(), "ACTIVE MOD & FILL: " + checkActiveModes(fillModeNames),0,0);
 
-
 		// load polygons && rectangles && ellipses
 		for (Polygon polygon : polygons) {
 			polygonRasterizer.rasterize(polygon);
@@ -492,7 +491,7 @@ public class Canvas {
 
 		// load seed filled border objects
 		for (SeedFillerBorder coloredObject : seedFillBorderObjects) {
-			coloredObject.fill(0xf0f0FF); // idk
+			coloredObject.fill(0xB00B69); // PINK
 		}
 
 		// load seed filled stack objects
@@ -506,23 +505,6 @@ public class Canvas {
 		}
 
 		drawString(raster.getGraphics(), "POLYGON MODE - CAPSLOCK\nRECTANGLE MODE - R\nELLIPSE MODE - E\nCHANGE FILL MODE - Q\nCLEAR CANVAS - C", 590, 500);
-	}
-
-	public Point[] findMinMaxOfEllipse(Ellipse ellipse) {
-		int minX = Integer.MAX_VALUE;
-		int maxX = Integer.MIN_VALUE;
-		int minY = Integer.MAX_VALUE;
-		int maxY = Integer.MIN_VALUE;
-
-		for (int i = 0; i < ellipse.getSize() - 1; i++) {
-			Point p = ellipse.getPoint(i);
-			minX = Math.min(minX, p.x);
-			maxX = Math.max(maxX, p.x);
-			minY = Math.min(minY, p.y);
-			maxY = Math.max(maxY, p.y);
-		}
-
-		return new Point[]{new Point(minX, minY), new Point(maxX, maxY)};
 	}
 
 	public String checkActiveModes(String[] fillModeNames) {
@@ -545,7 +527,6 @@ public class Canvas {
 		return String.join(", ",activeModes);
 
 	}
-
 
 	public static void main(String[] args) {
 		SwingUtilities.invokeLater(() -> new Canvas(800, 600).start());

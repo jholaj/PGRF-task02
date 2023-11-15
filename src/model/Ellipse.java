@@ -41,4 +41,22 @@ public class Ellipse extends Polygon {
         }
         return polygon;
     }
+
+    // func for bounding rectangle
+    public Point[] findMinMaxOfEllipse() {
+        int minX = Integer.MAX_VALUE;
+        int maxX = Integer.MIN_VALUE;
+        int minY = Integer.MAX_VALUE;
+        int maxY = Integer.MIN_VALUE;
+
+        for (int i = 0; i < getSize() - 1; i++) {
+            Point p = getPoint(i);
+            minX = Math.min(minX, p.x);
+            maxX = Math.max(maxX, p.x);
+            minY = Math.min(minY, p.y);
+            maxY = Math.max(maxY, p.y);
+        }
+
+        return new Point[]{new Point(minX, minY), new Point(maxX, maxY)};
+    }
 }
