@@ -6,4 +6,4 @@
 - [x] Implementace Scan-line algoritmu, vyplnění geometricky zadané plochy n-úhelníku.
 - [x] Implementace funkce na klávesu C pro mazání plátna a všech datových struktur.
 - [x] Implementace Seed Fill algoritmu pomocí fronty či zásobníku
-- [x] Vlastní Bonus: Zobrazení aktivního módu, fillu a nápovědy
+- [x] Zobrazení aktivního módu, fillu a nápovědy
