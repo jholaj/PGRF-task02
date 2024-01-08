@@ -7,3 +7,4 @@
 - [x] Implementace funkce na klávesu C pro mazání plátna a všech datových struktur.
 - [x] Implementace Seed Fill algoritmu pomocí fronty či zásobníku
 - [x] Zobrazení aktivního módu, fillu a nápovědy
+![alt text](https://i.imgur.com/XQDt6oR.png)
